@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,8 +36,16 @@ jobs:
           docker run --detach --name mle101-api --publish 8000:8000 \
             --volume "$PWD/artifacts/container-model:/model:ro" \
             --env MLE101_MODEL_URI=/model mle101-claims:ci
-          curl --fail-with-body --retry 10 --retry-connrefused --retry-delay 1 \
-            http://127.0.0.1:8000/health
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs mle101-api
+              exit 1
+            fi
+            sleep 2
+          done
           curl --fail-with-body --silent --show-error \
             -H 'Content-Type: application/json' \
             -d '{"initial_estimate":9000,"deductible":1000,"policy_tenure_months":12,"prior_claims":1,"reported_delay_days":4,"incident_type":"fire","region":"south"}' \
