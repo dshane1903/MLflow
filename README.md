@@ -19,9 +19,7 @@ Databricks Asset Bundles, hosted Model Serving, and Terraform are the **next mod
 
 ## Setup
 
-This workspace is already set up: `.venv` points to the prepared environment, so you can run the commands below now.
-
-For a fresh copy elsewhere, from this directory, on Python 3.11–3.13:
+From a fresh clone, on Python 3.11–3.13:
 
 ```bash
 python3.12 -m venv .venv
