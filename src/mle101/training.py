@@ -17,7 +17,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from .config import ALIAS, MODEL_NAME, ROOT, tracking_uri
+from .config import ALIAS, MODEL_NAME, ROOT, experiment_name, registry_uri, tracking_uri
 from .data import CATEGORICAL, FEATURES, NUMERIC, TARGET, validate_claims
 from .monitoring import make_reference
 
@@ -47,6 +47,11 @@ def make_pipeline(estimator: object) -> Pipeline:
 
 def train(data_path: Path, output_dir: Path | None = None) -> dict:
     frame = pd.read_csv(data_path)
+    return train_frame(frame, str(data_path.resolve()), output_dir)
+
+
+def train_frame(frame: pd.DataFrame, data_source: str, output_dir: Path | None = None) -> dict:
+    """Train on a bounded pandas frame from CSV or a curated Delta table."""
     validate_claims(frame, require_target=True)
     output_dir = output_dir or ROOT / "artifacts"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -61,7 +66,8 @@ def train(data_path: Path, output_dir: Path | None = None) -> dict:
         x_train[column] = x_train[column].astype(float)
         x_test[column] = x_test[column].astype(float)
     mlflow.set_tracking_uri(tracking_uri())
-    mlflow.set_experiment("mle101-claims")
+    mlflow.set_registry_uri(registry_uri() or tracking_uri())
+    mlflow.set_experiment(experiment_name())
     results = {}
 
     candidates = {
@@ -86,7 +92,7 @@ def train(data_path: Path, output_dir: Path | None = None) -> dict:
             mlflow.log_params(
                 {"algorithm": name, "rows_train": len(x_train), "rows_test": len(x_test)}
             )
-            mlflow.set_tags({"dataset": "synthetic", "target": TARGET, "seed": "42"})
+            mlflow.set_tags({"dataset": "synthetic", "data_source": data_source, "target": TARGET, "seed": "42"})
             signature = infer_signature(x_test.head(5), test_probability[:5])
             model_info = mlflow.sklearn.log_model(
                 sk_model=pipeline,
@@ -105,7 +111,7 @@ def train(data_path: Path, output_dir: Path | None = None) -> dict:
     (output_dir / "reference.json").write_text(json.dumps(reference, indent=2) + "\n")
     summary = {
         "tracking_uri": tracking_uri(),
-        "data_path": str(data_path.resolve()),
+        "data_source": data_source,
         "reference_path": str((output_dir / "reference.json").resolve()),
         "experiments": results,
         "recommended": "logistic" if passes_gate(results) else None,
@@ -130,6 +136,7 @@ def promote(summary_path: Path, name: str = "logistic") -> dict:
     if name != "logistic" or not passes_gate(summary["experiments"]):
         raise ValueError("promotion gate failed; inspect the MLflow runs before promoting")
     mlflow.set_tracking_uri(summary["tracking_uri"])
+    mlflow.set_registry_uri(registry_uri() or summary["tracking_uri"])
     client = MlflowClient()
     info = summary["experiments"][name]
     version = mlflow.register_model(model_uri=info["model_uri"], name=MODEL_NAME)

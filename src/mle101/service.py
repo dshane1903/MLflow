@@ -9,7 +9,7 @@ import pandas as pd
 from fastapi import Depends, FastAPI
 from pydantic import BaseModel, Field
 
-from .config import ALIAS, MODEL_NAME, tracking_uri
+from .config import ALIAS, model_uri, registry_uri, tracking_uri
 from .data import FEATURES, NUMERIC
 
 
@@ -32,7 +32,8 @@ class Prediction(BaseModel):
 @lru_cache(maxsize=1)
 def get_model():
     mlflow.set_tracking_uri(tracking_uri())
-    return mlflow.sklearn.load_model(f"models:/{MODEL_NAME}@{ALIAS}")
+    mlflow.set_registry_uri(registry_uri() or tracking_uri())
+    return mlflow.sklearn.load_model(model_uri())
 
 
 app = FastAPI(title="Claims MLE 101", version="0.1.0")
