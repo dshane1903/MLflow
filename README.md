@@ -2,7 +2,7 @@
 
 A guided, local-first simulation of the [Travelers Databricks/MLOps posting](https://careers.travelers.com/job/24040307/data-engineer-i-databricks-mlops-hartford-ct/). You will take synthetic claim data through validation, experiment tracking, a promotion decision, model serving, and an input-drift investigation. No real insurance data or cloud account is required.
 
-**Start with [LESSONS.md](LESSONS.md).** It asks you to make decisions before showing you what to run and inspect. The goal is to understand the production lifecycle, not just complete a notebook.
+**Start with [ROADMAP.md](ROADMAP.md)** for the learning sequence, then use [LESSONS.md](LESSONS.md) for the hands-on prompts. The goal is to understand the production lifecycle, not just complete a notebook.
 
 ## What this project covers
 
