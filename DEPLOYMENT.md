@@ -4,10 +4,10 @@ The repository has two execution paths. The original CSV/pandas path is the fast
 
 ## Run PySpark/Delta locally
 
-Use Python 3.12, Java 17, and enough disk for PySpark and Delta's JVM packages. Delta's local Spark configuration downloads compatible JARs from Maven on first use.
+Use Python 3.11, Java 17, and enough disk for PySpark and Delta's JVM packages. The pinned PySpark 3.5 line calls `distutils` during pandas conversion, which Python 3.12 removed. Delta's local Spark configuration downloads compatible JARs from Maven on first use.
 
 ```bash
-python3.12 -m venv .venv
+python3.11 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev,spark]"
 .venv/bin/mle101 generate --output data/claims.csv
 .venv/bin/mle101 spark-build --input data/claims.csv \
