@@ -1,0 +1,51 @@
+name: Compare and promote champion
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mle101-champion-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    # A persistent Databricks registry and noninteractive credentials are required.
+    if: ${{ vars.DATABRICKS_HOST != '' && vars.MLE101_MODEL_NAME != '' && vars.MLE101_EXPERIMENT_NAME != '' }}
+    runs-on: ubuntu-latest
+    environment: mlflow
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      MLE101_TRACKING_URI: databricks
+      MLE101_REGISTRY_URI: databricks-uc
+      MLE101_MODEL_NAME: ${{ vars.MLE101_MODEL_NAME }}
+      MLE101_EXPERIMENT_NAME: ${{ vars.MLE101_EXPERIMENT_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: python -m pip install -e '.[dev,spark]'
+      - run: python -m pytest -q
+      - name: Build a Delta training table and log candidate runs
+        run: |
+          mle101 generate --seed 42 --output data/claims.csv
+          mle101 spark-build --input data/claims.csv --bronze-table claims_bronze --silver-table claims_silver
+          mle101 train --delta-table claims_silver
+      - name: Compare with the current champion on a separate fixed cohort
+        run: |
+          mle101 auto-promote --eval-input fixtures/promotion_holdout.csv --min-ap-gain 0.01
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: promotion-decision
+          path: artifacts/promotion_decision.json
+          if-no-files-found: ignore
