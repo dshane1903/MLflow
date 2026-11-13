@@ -58,5 +58,5 @@ Run `pytest`. Then make one change at a time and explain its effect:
 2. Introduce a broken incoming row. Confirm validation prevents scoring.
 3. Write a short incident note for the shifted batch: symptom, likely causes, checks, and decision.
 
-The next module will package the training job for Databricks, move the registry and serving endpoint there, add deployment automation, and monitor model outcomes when delayed labels arrive.
+Continue with [EXTENSION_LESSONS.md](EXTENSION_LESSONS.md) for PySpark/Delta, automated champion comparison, and Docker. Databricks Asset Bundles, hosted serving, and delayed-outcome monitoring follow after this project.
 

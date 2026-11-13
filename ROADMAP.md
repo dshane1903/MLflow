@@ -1,29 +1,30 @@
-# Claims MLE 101 roadmap
+# Claims MLE roadmap
 
-This is a guided simulation of the data engineering and MLOps work in the Travelers role: data quality, model tracking and registry, serving, monitoring, testing, and incident response. The repository contains a working scaffold. Your job is to understand it, challenge its choices, and improve it in small, reviewable steps.
+This guided project now targets the largest gaps with the Travelers role: **Databricks/PySpark with Delta**, **automated champion comparison in CI**, and **containerized serving**. The original local workflow remains a foundation. The code is present; your task is to run it, explain it, find weaknesses, and make improvements.
 
-**Pace:** roughly 20–26 focused hours across seven stages. The times are estimates; move on when you can meet the exit check, not when the clock runs out. No cloud account is needed for 101.
+**Pace:** about 28–40 focused hours. The exit checks matter more than the estimates. Stage 2 requires a Databricks Free Edition workspace; the other stages can start locally or in GitHub Actions. [LESSONS.md](LESSONS.md) covers the original local loop, and [EXTENSION_LESSONS.md](EXTENSION_LESSONS.md) has prompts for the new work.
 
-## How we will work together
+## How we will work
 
-At each stage, I will give you a short scenario and ask for your prediction or design choice **before** we run the relevant code. You will inspect an output, explain what it means, and make one change. I will review your reasoning and code, offer hints when needed, and decide with you whether the exit check is met. Keep a brief note of what you predicted, what happened, and what you would change in production. The detailed prompts and commands are in [LESSONS.md](LESSONS.md).
+I will give you a scenario and ask for your prediction or design choice before showing the result. You will inspect an output, explain it, and make one small change. I will review your reasoning and code and help you test the change. Keep a short note of what you predicted, what happened, and what you would change in production.
 
-| Stage | Time | What you will do | Evidence to keep | Exit check |
-| --- | ---: | --- | --- | --- |
-| **0. Map the system** | 1–2 h | Trace `generate → validate → train → promote → score/serve → monitor`; set up the environment and run the existing tests. | A one-page sketch of the data flow, model artifacts, and failure points. | You can explain where the model comes from and where its version is stored. |
-| **1. Own the data contract** | 3 h | Identify the target, first-notice features, and possible leakage. Inspect the generator and validation rules; inject a bad row; add one useful validation rule and test. | A source-to-feature table and a test that fails before your fix and passes after it. | You can explain which bad input is rejected, why, and what happens to the batch. |
-| **2. Run and judge experiments** | 4 h | Compare the baseline and logistic model in MLflow. Read the split and metrics code; inspect run parameters and artifacts; add a second candidate on the same split. | A short comparison using average precision, ROC AUC, the train/test gap, and one limitation. | You can justify a candidate without relying on accuracy or a single score. |
-| **3. Make a promotion decision** | 2–3 h | Inspect the gate in `training.py`, choose whether to promote, then inspect the registered version and `champion` alias. Write down the evidence and a rollback plan. | A decision record with run ID, model version, gate results, and caveats. | You can distinguish a tracked run, registered version, and active alias. |
-| **4. Deliver predictions** | 3 h | Score an incoming batch and call the FastAPI endpoint. Check schema failures, compare equivalent batch/API predictions, and identify what version information a consumer needs. | A sample scored row, API response, and parity check. | You can explain how both paths load the promoted model and what a caller sees when input is invalid. |
-| **5. Investigate an incident** | 3–4 h | Compare ordinary and shifted batches with PSI. Determine whether the signal suggests a data defect, population change, or model issue; identify the outcome data needed to know whether performance changed. | An incident note: symptom, impact, hypotheses, checks, decision, and owner. | You can explain why input drift alone does not prove model failure or justify automatic retraining. |
-| **6. Ship a capstone change** | 4–6 h | Combine one improvement from stages 1–5 with a regression test, documentation, and a small GitHub change. Run CI and give a five-minute walkthrough of the full lifecycle. | A reviewed diff, passing tests/CI, and a concise demo or write-up. | You can reproduce the result from a fresh clone and defend the tradeoffs. |
+| Stage | Time | Work | Evidence and exit check |
+| --- | ---: | --- | --- |
+| **0. Map the system and contract** | 1–2 h | Trace the synthetic claim from first notice through validation, training, promotion, serving, and monitoring. Identify target leakage. | Sketch the flow and explain why only first-notice fields reach prediction. |
+| **1. Port the data step to PySpark/Delta** | 5–7 h | Inspect `spark_data.py`. Build raw `bronze` and validated `silver` Delta tables; inject invalid and duplicate rows; trace what is published. | Show table schemas, counts, and a failing feed. Explain the bounded handoff from Spark to scikit-learn. |
+| **2. Run it in Databricks Free Edition** | 2–4 h | Create a workspace, use serverless compute, load the synthetic CSV into a volume or workspace path, run the same PySpark code, and inspect the managed Delta tables. | Provide the table names, version, and a successful/failed validation run. The Databricks gap is not closed until this runs in a workspace. |
+| **3. Train and track from Delta** | 4–5 h | Train from the curated table. Compare baseline and logistic runs, the split, average precision, ROC AUC, and source-table version in MLflow. | Explain why a candidate beats the baseline and what the evaluation cannot prove. |
+| **4. Automate champion comparison** | 6–8 h | Run `auto-promote` on a separate evaluation cohort. Observe first-run bootstrap, a rejected equal candidate, and a better candidate. Configure the GitHub workflow to use a persistent registry and noninteractive Databricks credentials when available. | Show a decision artifact and the registry alias before/after. CI must leave the alias unchanged when the gate fails. A skipped workflow is not completion. |
+| **5. Serve the model in Docker** | 2–3 h | Export the champion, build the image, mount the model read-only, and test `/health` and `/predict`. Then reason about how a remote registry would replace the mounted demo model. | Show a real container prediction and an invalid-request response. |
+| **6. Investigate drift and defects** | 3–4 h | Compare ordinary and shifted batches, inspect PSI, and distinguish pipeline defects, population changes, and model performance changes. | Write an incident note with impact, hypotheses, checks, decision, and owner. |
+| **7. Ship a capstone change** | 4–6 h | Make one small improvement with a regression test and documentation. Run CI and explain the end-to-end flow in five minutes. | A reproducible diff, passing tests, and a clear account of what still depends on a real workspace. |
+
+## Important boundary for CI promotion
+
+GitHub runners are temporary. Their local MLflow SQLite database cannot represent a durable `champion`. The promotion workflow therefore points at a persistent Databricks MLflow/Unity Catalog registry and stays skipped until workspace variables and a credential are configured. It compares candidate and champion on the **same fixed evaluation cohort** and only changes the alias when the candidate passes the baseline/evaluation guardrails and exceeds the champion by the configured average-precision margin. The decision and cohort fingerprint are recorded. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Completion standard
 
-The 101 is complete when you can run the loop from a fresh clone, explain every artifact in the README, diagnose a broken feed and a drift alert, and show a small change that passes tests and CI. You should be able to describe what this local simulation teaches **and** what it leaves out of an enterprise deployment.
+You can explain and reproduce the local loop, show the PySpark/Delta step running in Databricks, demonstrate a real champion comparison with a persistent registry, serve a prediction from Docker, and diagnose a drift alert. The repository currently provides the code and CI wiring; the live Databricks and credential-backed checks require a workspace.
 
-## What comes after 101
-
-**201: Databricks deployment.** Package the jobs with Databricks Asset Bundles, move experiment tracking and the registry to a workspace, deploy a hosted serving endpoint, and add a release pipeline. Then cover Terraform/AWS infrastructure, governance and access controls, and monitoring with delayed outcome labels. This is a separate module because it requires cloud access and different operational decisions.
-
-**First session:** Stage 0, then the prediction-contract questions in Stage 1. We will stop at each checkpoint so you can reason through the result before seeing the next step.
+**Later:** add a Databricks Asset Bundle to deploy the jobs and resources, then consider Terraform for infrastructure. Those are useful after the data, registry, and serving paths work end to end.

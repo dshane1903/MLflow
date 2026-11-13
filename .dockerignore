@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+__pycache__
+.pytest_cache
+*.pyc
+*.egg-info
+.DS_Store
+data
+artifacts
+mlflow.db
+mlruns
+tests
+*.md
